@@ -1,7 +1,14 @@
+import argparse
 import logging
 import os
 import subprocess
 import sys
+
+parser = argparse.ArgumentParser()
+
+parser.add_argument('main_branch', type=str, help='A required main branch name')
+parser.add_argument('project_path', type=str, help='A required path to the project')
+parser.add_argument('file_with_branches', type=str, help='A required path to the file with branches')
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -28,36 +35,34 @@ class RebaseRemotes(object):
     def _get_list_of_branches_from_file(self):
         with open(self.file_path_with_list_of_branches) as f:
             branches = f.readlines()
-        self.branches = [br.strip() for br in branches]
+        self.branches = [br.replace('origin/', '').strip() for br in branches]
 
-    def _git(self, arg):  # type: (str) -> int
+    def _git(self, arg, raise_if_error=True):  # type: (str, bool) -> bool
         cmd = r'git -C {} {}'.format(self.git_repo_path, arg)
         logger.info(cmd)
         process = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         output, error = process.communicate()
 
-        if process.returncode != 0:
+        if process.returncode:
             logger.error('stdout| {}'.format(output))
             logger.error('stderr| {}'.format(error))
+            if raise_if_error:
+                raise SystemError
 
-        return True if process.returncode == 0 else False
+        return not process.returncode
 
     def execute(self):  # type: () -> str
         self._get_list_of_branches_from_file()
 
-        if not self._git('fetch -p'):
-            return 'Fetch error. Perhaps a problem with the network.'
+        self._git('fetch -p')
 
         for branch in self.branches:
-            branch = branch.replace('origin/', '')
-            logger.info('Processing - {}'.format(branch))
+            logger.info('Processing branch {}'.format(branch))
 
-            self._git('branch -D {}'.format(branch))
-            if not self._git('checkout {}'.format(branch)):
-                logger.error('Error when switching to branch. Skipping.')
-                continue
+            self._git('branch -D {}'.format(branch), raise_if_error=False)
+            self._git('checkout {}'.format(branch))
 
-            if self._git('pull --rebase origin {}'.format(self.main_branch)):
+            if self._git('pull --rebase origin {}'.format(self.main_branch), raise_if_error=False):
                 self._git('push -f origin {}'.format(branch))
             else:
                 self.branches_with_conflicts.append(branch)
@@ -71,14 +76,7 @@ class RebaseRemotes(object):
 
 
 if __name__ == '__main__':
-    # if len(sys.argv) != 3:
-    #     sys.stderr.write('argv len err')
-    #     sys.exit(1)
-    # else:
-    #     rebase_remotes = RebaseRemotes(*sys.argv)
-    #     print(rebase_remotes.execute())
-
-    from config import MAIN_BRANCH, PROJECT_PATH
-
-    rebase_remotes = RebaseRemotes(MAIN_BRANCH, PROJECT_PATH, 'branches.txt')
-    print(rebase_remotes.execute())
+    args = parser.parse_args()
+    rebase_remotes = RebaseRemotes(args.main_branch, args.project_path, args.file_with_branches)
+    br_with_conflicts = rebase_remotes.execute()
+    print(br_with_conflicts)
