@@ -22,7 +22,7 @@ logging.basicConfig(
 LOGGER = logging.getLogger('print_to_stdout')
 
 
-class GitFlow(object):
+class GitPy(object):
 
     def __init__(self, main_branch, git_repo_path, file_with_list_of_branches):
         self.main_branch = main_branch  # type: str
@@ -49,7 +49,7 @@ class GitFlow(object):
 
         return not process.returncode
 
-    def rebase(self):
+    def rebase(self, push=True):
         assert self.branches
         self._git('fetch -p')
 
@@ -61,8 +61,11 @@ class GitFlow(object):
             self._git('checkout {}'.format(branch))
 
             if self._git('pull --rebase origin {}'.format(self.main_branch), interrupt_if_error=False):
-                # continue
-                self._git('push -f origin {}'.format(branch))
+                if push:
+                    self._git('push -f origin {}'.format(branch))
+                else:
+                    continue
+
             else:
                 conflicts.append(branch)
                 self._git('rebase --abort')
@@ -113,7 +116,7 @@ class GitFlow(object):
 
 if __name__ == '__main__':
     args = parser.parse_args()
-    rebase_remotes = GitFlow(args.main_branch, args.project_path, args.file_with_branches)
+    rebase_remotes = GitPy(args.main_branch, args.project_path, args.file_with_branches)
 
     if args.process == 'rebase':
         rebase_remotes.rebase()
