@@ -92,7 +92,7 @@ class GitPy(object):
 
         print('* Merge result * {}{}'.format(os.linesep, result))
 
-    def merge_parts(self, parts):  # type: (int) -> None
+    def merge_parts(self, parts, push=True):
         assert self.branches
         self.branches.reverse()
 
@@ -109,8 +109,8 @@ class GitPy(object):
                 else:
                     self._git('merge {}'.format(br))
 
-            # self._git('push origin {}'.format(branch_name))
-            LOGGER.info('push origin {}'.format(branch_name))
+            if push:
+                self._git('push origin {}'.format(branch_name))
             start += 1
 
 
@@ -125,7 +125,7 @@ if __name__ == '__main__':
         rebase_remotes.merge('target_branch')
 
     elif args.process == 'merge_parts':
-        rebase_remotes.merge_parts(5)
+        rebase_remotes.merge_parts(5, push=False)
 
     else:
         parser.print_help(sys.stderr)
