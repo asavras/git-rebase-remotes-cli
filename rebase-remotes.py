@@ -13,13 +13,20 @@ parser.add_argument('main_branch', help='A required main branch name')
 parser.add_argument('project_path', help='A required path to the project')
 parser.add_argument('file_with_branches', help='A required path to the file with branches')
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='[%(asctime)s] %(levelname)s - %(message)s',
-    handlers=logging.StreamHandler(sys.stdout)
-)
+# create logger
+LOGGER = logging.getLogger('main_logger')
+LOGGER.setLevel(logging.DEBUG)
 
-LOGGER = logging.getLogger('print_to_stdout')
+# create formatter for logger
+formatter = logging.Formatter('[%(asctime)s] %(levelname)s - %(message)s')
+
+# create console handler
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+ch.setFormatter(formatter)
+
+# add the handlers to the logger
+LOGGER.addHandler(ch)
 
 
 class GitPy(object):
