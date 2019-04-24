@@ -22,8 +22,8 @@ parser.add_argument('project_path', help='A required path to the project')
 parser.add_argument('file_with_branches', help='A required path to the file with branches')
 
 # create logger
-LOGGER = logging.getLogger('main_logger')
-LOGGER.setLevel(logging.DEBUG)
+logger = logging.getLogger('main_logger')
+logger.setLevel(logging.DEBUG)
 
 # create formatter for logger
 formatter = logging.Formatter('[%(asctime)s] %(levelname)s - %(message)s')
@@ -34,7 +34,7 @@ ch.setLevel(logging.DEBUG)
 ch.setFormatter(formatter)
 
 # add the handlers to the logger
-LOGGER.addHandler(ch)
+logger.addHandler(ch)
 
 
 def print_result(func):
@@ -78,13 +78,13 @@ class GitPy(object):
 
     def _git(self, git_cmd, ignore_err=False, interrupt_if_err=True):  # type: (str, bool, bool) -> bool
         cmd = r'git -C {} {}'.format(self.git_repo_path, git_cmd)
-        LOGGER.info(git_cmd)
+        logger.info(git_cmd)
         process = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         output, error = process.communicate()
 
         if process.returncode == 1 and not ignore_err:
-            LOGGER.warn('{}'.format(output))
-            LOGGER.error('{}'.format(error))
+            logger.warn('{}'.format(output))
+            logger.error('{}'.format(error))
             if interrupt_if_err:
                 sys.exit(1)
 
@@ -112,7 +112,7 @@ class GitPy(object):
         self._git('pull')
 
         if not self._git('checkout {}'.format(target), ignore_err=True):
-            LOGGER.info('branch {} not found.'.format(target))
+            logger.info('branch {} not found.'.format(target))
             self._git('checkout {} -b {}'.format(self.main_branch, target))
 
         conflicts = []
