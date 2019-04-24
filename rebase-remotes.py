@@ -1,8 +1,16 @@
+r"""
+Examples:
+
+rebase-remotes.py rebase stable c:\src\git_repo_path\ c:\work\list_with_branches.txt
+rebase-remotes.py merge stable c:\src\git_repo_path\ c:\work\list_with_branches.txt
+"""
+
 import argparse
 import logging
 import os
 import subprocess
 import sys
+from functools import wraps
 
 from typing import List
 
@@ -29,96 +37,94 @@ ch.setFormatter(formatter)
 LOGGER.addHandler(ch)
 
 
+def print_result(func):
+    @wraps(func)
+    def wrap(obj, *args, **kwargs):
+        """
+        :type obj: GitPy
+        """
+        obj._git('fetch -p')
+
+        conflicts = func(obj, *args, **kwargs)
+
+        result = os.linesep.join(conflicts)
+        if not result:
+            result = 'No branches with {} conflicts.'.format(func.__name__)
+
+        print('{} result:{}{}'.format(func.__name__, os.linesep, result))
+
+    return wrap
+
+
+def get_list_of_branches_from_file(file_name):
+    with open(file_name) as branch_file, open('ignore.txt') as ignore_file:
+        branches = branch_file.readlines()
+        ignore_file = ignore_file.readlines()
+
+    ignore_file = set(ignore.strip('\n').upper() for ignore in ignore_file)
+    branches = [br.replace('origin/', '').strip() for br in branches]
+    branches = [br for br in branches if br.split('/')[0].upper() not in ignore_file]
+
+    assert branches
+    return branches
+
+
 class GitPy(object):
 
     def __init__(self, main_branch, git_repo_path, file_with_list_of_branches):
         self.main_branch = main_branch  # type: str
         self.git_repo_path = git_repo_path  # type: str
-        self.file_path_with_list_of_branches = file_with_list_of_branches  # type: str
-        self.branches = self._get_list_of_branches_from_file()  # type: List[str]
+        self.branches = get_list_of_branches_from_file(file_with_list_of_branches)  # type: List[str]
 
-    def _get_list_of_branches_from_file(self):
-        with open(self.file_path_with_list_of_branches) as f:
-            branches = f.readlines()
-        return [br.replace('origin/', '').strip() for br in branches]
-
-    def _git(self, arg, interrupt_if_error=True, ignore_error=False):  # type: (str, bool, bool) -> bool
-        cmd = r'git -C {} {}'.format(self.git_repo_path, arg)
-        LOGGER.info(arg)
+    def _git(self, git_cmd, ignore_err=False, interrupt_if_err=True):  # type: (str, bool, bool) -> bool
+        cmd = r'git -C {} {}'.format(self.git_repo_path, git_cmd)
+        LOGGER.info(git_cmd)
         process = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         output, error = process.communicate()
 
-        if process.returncode == 1 and not ignore_error:
-            LOGGER.error('stdout| {}'.format(output))
-            LOGGER.error('stderr| {}'.format(error))
-            if interrupt_if_error:
+        if process.returncode == 1 and not ignore_err:
+            LOGGER.warn('{}'.format(output))
+            LOGGER.error('{}'.format(error))
+            if interrupt_if_err:
                 sys.exit(1)
 
         return not process.returncode
 
+    @print_result
     def rebase(self, push=True):
-        assert self.branches
-        self._git('fetch -p')
-
         conflicts = []
         for branch in self.branches:
-            LOGGER.info('processing {}'.format(branch))
-
-            self._git('branch -D {}'.format(branch), ignore_error=True)
+            self._git('branch -D {}'.format(branch), ignore_err=True)
             self._git('checkout {}'.format(branch))
 
-            if self._git('pull --rebase origin {}'.format(self.main_branch), interrupt_if_error=False):
+            if self._git('pull --rebase origin {}'.format(self.main_branch), interrupt_if_err=False):
                 if push:
                     self._git('push -f origin {}'.format(branch))
-                else:
-                    continue
-
             else:
                 conflicts.append(branch)
                 self._git('rebase --abort')
 
-        result = os.linesep.join(conflicts)
-        if not result:
-            result = 'No branches with rebase conflicts.'
+        return conflicts
 
-        print('* Rebase result * {}{}'.format(os.linesep, result))
+    @print_result
+    def merge(self, target, push=False):
+        self._git('checkout {}'.format(self.main_branch))
+        self._git('pull')
 
-    def merge(self, target):
-        assert self.branches
-        self._git('checkout {} -b {}'.format(self.main_branch, target))
+        if not self._git('checkout {}'.format(target), ignore_err=True):
+            LOGGER.info('branch {} not found.'.format(target))
+            self._git('checkout {} -b {}'.format(self.main_branch, target))
 
         conflicts = []
         for branch in self.branches:
-            if not self._git('merge {}'.format(branch), interrupt_if_error=False):
+            if not self._git('merge {}'.format(branch), interrupt_if_err=False):
                 conflicts.append(branch)
                 self._git('merge --abort')
 
-        result = os.linesep.join(conflicts)
-        if not result:
-            result = 'No branches with merge conflicts.'
+        if push:
+            self._git('push origin {}'.format(target))
 
-        print('* Merge result * {}{}'.format(os.linesep, result))
-
-    def merge_parts(self, parts, push=True):
-        assert self.branches
-        self.branches.reverse()
-
-        start = 1
-        while self.branches:
-            branch_name = 'qa_test_{}'.format(start)
-            self._git('checkout {} -b {}'.format(self.main_branch, branch_name))
-
-            for idx in range(parts):
-                try:
-                    br = self.branches.pop()
-                except IndexError:
-                    break
-                else:
-                    self._git('merge {}'.format(br))
-
-            if push:
-                self._git('push origin {}'.format(branch_name))
-            start += 1
+        return conflicts
 
 
 if __name__ == '__main__':
@@ -129,10 +135,7 @@ if __name__ == '__main__':
         rebase_remotes.rebase()
 
     elif args.process == 'merge':
-        rebase_remotes.merge('target_branch')
-
-    elif args.process == 'merge_parts':
-        rebase_remotes.merge_parts(5, push=False)
+        rebase_remotes.merge('QA4')
 
     else:
         parser.print_help(sys.stderr)
