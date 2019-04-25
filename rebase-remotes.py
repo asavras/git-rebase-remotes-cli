@@ -108,11 +108,10 @@ class GitPy(object):
 
     @print_result
     def merge(self, target, push=False):
-        self._git('checkout {}'.format(self.main_branch))
-        self._git('pull')
-
         if not self._git('checkout {}'.format(target), ignore_err=True):
             logger.info('branch {} not found.'.format(target))
+            self._git('checkout {}'.format(self.main_branch))
+            self._git('pull')
             self._git('checkout {} -b {}'.format(self.main_branch, target))
 
         conflicts = []
@@ -126,6 +125,32 @@ class GitPy(object):
 
         return conflicts
 
+    @print_result
+    def merge_parts(self, target):
+        self._git('checkout {}'.format(self.main_branch))
+        self._git('pull')
+
+        conflicts = []
+        counter = 1
+        last_branch = self.main_branch
+        for branch in self.branches:
+            need = branch.split('/')[0].upper()
+
+            target_branch = '_'.join((target, str(counter), need))
+
+            self._git('checkout {} -b {}'.format(last_branch, target_branch))
+            last_branch = target_branch
+
+            if not self._git('merge {}'.format(branch), interrupt_if_err=False):
+                conflicts.append(branch)
+                self._git('merge --abort')
+            else:
+                self._git('push origin {}'.format(target_branch))
+
+            counter += 1
+
+        return conflicts
+
 
 if __name__ == '__main__':
     args = parser.parse_args()
@@ -135,7 +160,10 @@ if __name__ == '__main__':
         rebase_remotes.rebase()
 
     elif args.process == 'merge':
-        rebase_remotes.merge('QA4')
+        rebase_remotes.merge('QA1')
+
+    elif args.process == 'merge_parts':
+        rebase_remotes.merge_parts('QA')
 
     else:
         parser.print_help(sys.stderr)
