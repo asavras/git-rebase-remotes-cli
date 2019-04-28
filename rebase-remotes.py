@@ -12,13 +12,11 @@ import subprocess
 import sys
 from functools import wraps
 
-from typing import List
-
 parser = argparse.ArgumentParser()
 
 parser.add_argument('process', help='A required process like rebase, merge or merge_parts')
 parser.add_argument('main_branch', help='A required main branch name')
-parser.add_argument('project_path', help='A required path to the project')
+parser.add_argument('git_repo_path', help='A required path to the project')
 parser.add_argument('file_with_branches', help='A required path to the file with branches')
 
 # create logger
@@ -41,7 +39,7 @@ def print_result(func):
     @wraps(func)
     def wrap(obj, *args, **kwargs):
         """
-        :type obj: GitPy
+        :type obj: GitFlow
         """
         obj._git('fetch -p')
 
@@ -56,30 +54,35 @@ def print_result(func):
     return wrap
 
 
-def get_list_of_branches_from_file(file_name):
-    with open(file_name) as branch_file, open('ignore.txt') as ignore_file:
-        branches = branch_file.readlines()
-        ignore_file = ignore_file.readlines()
+def get_list_of_branches_from_file(file_name):  # type: (str) -> list
+    with open(file_name) as f:
+        branches = f.readlines()
 
-    ignore_file = set(ignore.strip('\n').upper() for ignore in ignore_file)
     branches = [br.replace('origin/', '').strip() for br in branches]
-    branches = [br for br in branches if br.split('/')[0].upper() not in ignore_file]
+
+    ignore_file_name = 'ignore.txt'
+    if os.path.isfile(ignore_file_name):
+        with open(ignore_file_name) as f:
+            ignore_file = f.readlines()
+
+        ignore_file = set(ignore.strip('\n').upper() for ignore in ignore_file)
+        branches = [br for br in branches if br.split('/')[0].upper() not in ignore_file]
 
     assert branches
     return branches
 
 
-class GitPy(object):
+class GitFlow(object):
 
     def __init__(self, main_branch, git_repo_path, file_with_list_of_branches):
-        self.main_branch = main_branch  # type: str
-        self.git_repo_path = git_repo_path  # type: str
-        self.branches = get_list_of_branches_from_file(file_with_list_of_branches)  # type: List[str]
+        self._main_branch = main_branch  # type: str
+        self._git_repo_path = 'git -C {}'.format(git_repo_path)  # type: str
+        self._branches = get_list_of_branches_from_file(file_with_list_of_branches)  # type: list
 
-    def _git(self, git_cmd, ignore_err=False, interrupt_if_err=True):  # type: (str, bool, bool) -> bool
-        cmd = r'git -C {} {}'.format(self.git_repo_path, git_cmd)
-        logger.info(git_cmd)
-        process = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    def _git(self, cmd, ignore_err=False, interrupt_if_err=True):  # type: (str, bool, bool) -> bool
+        execute = ' '.join((self._git_repo_path, cmd))
+        logger.info(cmd)
+        process = subprocess.Popen(execute.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         output, error = process.communicate()
 
         if process.returncode == 1 and not ignore_err:
@@ -93,11 +96,11 @@ class GitPy(object):
     @print_result
     def rebase(self, push=True):
         conflicts = []
-        for branch in self.branches:
+        for branch in self._branches:
             self._git('branch -D {}'.format(branch), ignore_err=True)
             self._git('checkout {}'.format(branch))
 
-            if self._git('pull --rebase origin {}'.format(self.main_branch), interrupt_if_err=False):
+            if self._git('pull --rebase origin {}'.format(self._main_branch), interrupt_if_err=False):
                 if push:
                     self._git('push -f origin {}'.format(branch))
             else:
@@ -110,12 +113,12 @@ class GitPy(object):
     def merge(self, target, push=False):
         if not self._git('checkout {}'.format(target), ignore_err=True):
             logger.info('branch {} not found.'.format(target))
-            self._git('checkout {}'.format(self.main_branch))
+            self._git('checkout {}'.format(self._main_branch))
             self._git('pull')
-            self._git('checkout {} -b {}'.format(self.main_branch, target))
+            self._git('checkout {} -b {}'.format(self._main_branch, target))
 
         conflicts = []
-        for branch in self.branches:
+        for branch in self._branches:
             if not self._git('merge {}'.format(branch), interrupt_if_err=False):
                 conflicts.append(branch)
                 self._git('merge --abort')
@@ -127,13 +130,13 @@ class GitPy(object):
 
     @print_result
     def merge_parts(self, target):
-        self._git('checkout {}'.format(self.main_branch))
+        self._git('checkout {}'.format(self._main_branch))
         self._git('pull')
 
         conflicts = []
         counter = 1
-        last_branch = self.main_branch
-        for branch in self.branches:
+        last_branch = self._main_branch
+        for branch in self._branches:
             need = branch.split('/')[0].upper()
 
             target_branch = '_'.join((target, str(counter), need))
@@ -154,7 +157,7 @@ class GitPy(object):
 
 if __name__ == '__main__':
     args = parser.parse_args()
-    rebase_remotes = GitPy(args.main_branch, args.project_path, args.file_with_branches)
+    rebase_remotes = GitFlow(args.main_branch, args.git_repo_path, args.file_with_branches)
 
     if args.process == 'rebase':
         rebase_remotes.rebase()
