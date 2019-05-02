@@ -75,12 +75,12 @@ def get_list_of_branches_from_file(file_name):  # type: (str) -> list
 class GitFlow(object):
 
     def __init__(self, main_branch, git_repo_path, file_with_list_of_branches):
-        self._main_branch = main_branch  # type: str
-        self._git_repo_path = 'git -C {}'.format(git_repo_path)  # type: str
-        self._branches = get_list_of_branches_from_file(file_with_list_of_branches)  # type: list
+        self.main_branch = main_branch  # type: str
+        self.git_repo_path = 'git -C {}'.format(git_repo_path)  # type: str
+        self.branches = get_list_of_branches_from_file(file_with_list_of_branches)  # type: list
 
     def _git(self, cmd, ignore_err=False, interrupt_if_err=True):  # type: (str, bool, bool) -> bool
-        execute = ' '.join((self._git_repo_path, cmd))
+        execute = ' '.join((self.git_repo_path, cmd))
         logger.info(cmd)
         process = subprocess.Popen(execute.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         output, error = process.communicate()
@@ -94,13 +94,12 @@ class GitFlow(object):
         return not process.returncode
 
     @print_result
-    def rebase(self, push=True):
+    def rebase(self, push=False):
         conflicts = []
-        for branch in self._branches:
-            self._git('branch -D {}'.format(branch), ignore_err=True)
-            self._git('checkout {}'.format(branch))
+        for branch in self.branches:
+            self._git('checkout -B {0} origin/{0}'.format(branch))
 
-            if self._git('pull --rebase origin {}'.format(self._main_branch), interrupt_if_err=False):
+            if self._git('pull --rebase origin {}'.format(self.main_branch), interrupt_if_err=False):
                 if push:
                     self._git('push -f origin {}'.format(branch))
             else:
@@ -110,47 +109,16 @@ class GitFlow(object):
         return conflicts
 
     @print_result
-    def merge(self, target, push=False):
+    def merge(self, target):
         if not self._git('checkout {}'.format(target), ignore_err=True):
-            logger.info('branch {} not found.'.format(target))
-            self._git('checkout {}'.format(self._main_branch))
-            self._git('pull')
-            self._git('checkout {} -b {}'.format(self._main_branch, target))
+            logger.warn('branch {} not found.'.format(target))
+            sys.exit(1)
 
         conflicts = []
-        for branch in self._branches:
-            if not self._git('merge {}'.format(branch), interrupt_if_err=False):
+        for branch in self.branches:
+            if not self._git('merge --no-ff {}'.format(branch), interrupt_if_err=False):
                 conflicts.append(branch)
                 self._git('merge --abort')
-
-        if push:
-            self._git('push origin {}'.format(target))
-
-        return conflicts
-
-    @print_result
-    def merge_parts(self, target):
-        self._git('checkout {}'.format(self._main_branch))
-        self._git('pull')
-
-        conflicts = []
-        counter = 1
-        last_branch = self._main_branch
-        for branch in self._branches:
-            need = branch.split('/')[0].upper()
-
-            target_branch = '_'.join((target, str(counter), need))
-
-            self._git('checkout {} -b {}'.format(last_branch, target_branch))
-            last_branch = target_branch
-
-            if not self._git('merge {}'.format(branch), interrupt_if_err=False):
-                conflicts.append(branch)
-                self._git('merge --abort')
-            else:
-                self._git('push origin {}'.format(target_branch))
-
-            counter += 1
 
         return conflicts
 
@@ -163,10 +131,7 @@ if __name__ == '__main__':
         rebase_remotes.rebase()
 
     elif args.process == 'merge':
-        rebase_remotes.merge('QA1')
-
-    elif args.process == 'merge_parts':
-        rebase_remotes.merge_parts('QA')
+        rebase_remotes.merge('target-branch')
 
     else:
         parser.print_help(sys.stderr)
