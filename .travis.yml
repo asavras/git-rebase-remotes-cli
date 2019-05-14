@@ -5,8 +5,8 @@ python:
   - "3.6"
 
 install:
-  - pip install pipenv --upgrade
-  - pipenv install --dev
+  - pip install -U pip
+  - pip install -r requirements.txt
 
 script:
   - flake8 --max-line-length 120 rebase-remotes.py
