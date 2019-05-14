@@ -38,13 +38,13 @@ def cli():
     assert os.path.isdir(args.git_repo_path), 'Directory does not exist'
     assert os.path.isfile(args.file_with_branches), 'File does not exist'
 
-    rebase_remotes = RebaseRemotes(args.git_repo_path, args.file_with_branches, args.i)
+    rr = RebaseRemotes(args.git_repo_path, args.file_with_branches, args.i)
 
     if args.s == 'rebase':
-        rebase_remotes.rebase(args.b, args.p)
+        rr.rebase(args.b, args.p)
 
     elif args.s == 'merge':
-        rebase_remotes.merge(args.b)
+        rr.merge(args.b)
 
 
 def print_result(func):
