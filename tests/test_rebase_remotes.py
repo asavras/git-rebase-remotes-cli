@@ -1,21 +1,14 @@
-try:
-    from unittest.mock import MagicMock, call
-except ImportError:
-    from mock import MagicMock, call
-
-
-def test_rebase(rebase_remotes):
+def test_rebase_call_order(rebase_remotes, mocker):
     rr = rebase_remotes
-    rr.git = MagicMock(return_value=1)
+    mocker.patch.object(rr, 'git', return_value=1)
     target_branch = 'test'
     rr.rebase(target_branch, False)
 
     calls = [
-        call('fetch -p'),
-        call('checkout -B {0} origin/{0}'.format('br1')),
-        call('pull --rebase origin {}'.format(target_branch), interrupt_if_err=False),
-        call('checkout -B {0} origin/{0}'.format('br2')),
-        call('pull --rebase origin {}'.format(target_branch), interrupt_if_err=False),
+        mocker.call('fetch -p'),
+        mocker.call('checkout -B {0} origin/{0}'.format('br1')),
+        mocker.call('pull --rebase origin {}'.format(target_branch), interrupt_if_err=False),
+        mocker.call('checkout -B {0} origin/{0}'.format('br2')),
+        mocker.call('pull --rebase origin {}'.format(target_branch), interrupt_if_err=False),
     ]
     rr.git.assert_has_calls(calls, any_order=False)
-    assert rr.git.call_count == 5
