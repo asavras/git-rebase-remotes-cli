@@ -1,4 +1,7 @@
-from unittest.mock import MagicMock, call
+try:
+    from unittest.mock import MagicMock, call
+except ImportError:
+    from mock import MagicMock, call
 
 
 def test_rebase(rebase_remotes):
