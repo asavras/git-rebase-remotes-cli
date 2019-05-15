@@ -1,6 +1,6 @@
 # Rebase-remotes [![Build Status](https://travis-ci.org/asavras/rebase-remotes.svg?branch=master)](https://travis-ci.org/asavras/rebase-remotes)
 
-Rebase-remotes is a Python cli for rebasing remote branches onto specify branch.
+Python cli for rebasing remote branches onto specify branch.
 All conflicts need to be resolved manually.
 
 ## Usage
