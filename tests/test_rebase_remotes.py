@@ -1,6 +1,6 @@
 def test_rebase_call_order(rebase_remotes, mocker):
+    mocker.patch.object(rebase_remotes, 'git', return_value=1)
     rr = rebase_remotes
-    mocker.patch.object(rr, 'git', return_value=1)
     target_branch = 'test'
     rr.rebase(target_branch, False)
 
@@ -12,3 +12,10 @@ def test_rebase_call_order(rebase_remotes, mocker):
         mocker.call('pull --rebase origin {}'.format(target_branch), interrupt_if_err=False),
     ]
     rr.git.assert_has_calls(calls, any_order=False)
+
+
+def test_rebase_not_result(rebase_remotes, mocker):
+    mocker.patch.object(rebase_remotes, 'git', return_value=1)
+    rr = rebase_remotes
+    result = rr.rebase('test', False)
+    assert not result
