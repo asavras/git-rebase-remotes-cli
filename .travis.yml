@@ -1,13 +1,20 @@
 language: python
 
-python:
-  - "2.7"
-  - "3.6"
+matrix:
+  include:
+    - python: 2.7
+      dist: trusty
+    - python: 3.7
+      dist: xenial
 
 install:
-  - pip install -U pip
-  - pip install -r requirements.txt
+  - pip install flake8 pytest pytest-mock
 
 script:
-  - flake8 --max-line-length 120 rebase-remotes.py
+  - flake8 --max-line-length 120
   - pytest -p no:cacheprovider
+
+notifications:
+  email:
+    on_success: change
+    on_failure: change
