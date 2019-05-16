@@ -6,6 +6,6 @@ All conflicts need to be resolved manually.
 ## Usage
 
 ```bash
-python rebase_remotes.py c:\repo\ c:\list_with_branches.txt -s rebase -b master -p
-python rebase_remotes.py c:\repo\ c:\list_with_branches.txt -s merge -b develop -i c:\ignore.txt
+python rebase_remotes.py c:\git_repo\ c:\branches.txt -s rebase -b master
+python rebase_remotes.py c:\git_repo\ c:\branches.txt -s merge -b develop -i c:\ignore.txt
 ```

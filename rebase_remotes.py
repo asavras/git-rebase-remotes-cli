@@ -6,10 +6,8 @@ import sys
 from functools import wraps
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-formatter = logging.Formatter('[%(asctime)s] %(levelname)s - %(message)s')
 stream_handler = logging.StreamHandler()
-stream_handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter('[%(asctime)s] %(levelname)s - %(message)s')
 stream_handler.setFormatter(formatter)
 logger.addHandler(stream_handler)
 
@@ -17,28 +15,28 @@ logger.addHandler(stream_handler)
 def get_args():
     examples = r"""
     examples:
-    python rebase_remotes.py c:\repo\ c:\list_with_branches.txt -s rebase -b master -p
-    python rebase_remotes.py c:\repo\ c:\list_with_branches.txt -s merge -b develop -i c:\ignore.txt
+    python rebase_remotes.py c:\git_repo\ c:\branches.txt -s rebase -b master
+    python rebase_remotes.py c:\git_repo\ c:\branches.txt -s merge -b develop -i c:\ignore.txt
     """
     parser = argparse.ArgumentParser(description='Rebase Remotes Tool',
                                      epilog=examples,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('git_repo_path', help='path to the git repository')
-    parser.add_argument('file_with_branches', help='path to the file with list of branches')
-    parser.add_argument('-s', help='git strategy', choices=('rebase', 'merge'), required=True)
+    parser.add_argument('git_repo', help='path to the git repository')
+    parser.add_argument('branches', help='path to the file with list of branches')
+    parser.add_argument('-s', help='git strategy', required=True, choices=('rebase', 'merge'))
     parser.add_argument('-b', help='choose specify branch', required=True)
     parser.add_argument('-i', help='path to the file with list of needs to ignore', default='')
     parser.add_argument('-p', help='push target branches to origin repo', default=False, action='store_true')
     return parser.parse_args()
 
 
-def cli():
+def main():
     args = get_args()
 
-    assert os.path.isdir(args.git_repo_path), 'Directory does not exist'
-    assert os.path.isfile(args.file_with_branches), 'File does not exist'
+    assert os.path.isdir(args.git_repo), 'Directory does not exist'
+    assert os.path.isfile(args.branches), 'File does not exist'
 
-    rr = RebaseRemotes(args.git_repo_path, args.file_with_branches, args.i)
+    rr = RebaseRemotes(args.git_repo, args.branches, args.i)
 
     if args.s == 'rebase':
         rr.rebase(args.b, args.p)
@@ -73,7 +71,7 @@ class RebaseRemotes(object):
         output, error = process.communicate()
 
         if process.returncode == 1 and not ignore_err:
-            logger.warn('{}'.format(output))
+            logger.warning('{}'.format(output))
             logger.error('{}'.format(error))
             if interrupt_if_err:
                 sys.exit(1)
@@ -139,4 +137,4 @@ class RebaseRemotes(object):
 
 
 if __name__ == '__main__':
-    cli()
+    main()
