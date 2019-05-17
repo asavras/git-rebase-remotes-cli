@@ -1,20 +1,30 @@
+dist: xenial
 language: python
+cache: false
 
-matrix:
+stages:
+  - lint
+  - test
+
+jobs:
   include:
-    - python: 2.7
-      dist: trusty
+    - stage: lint
+      script: flake8 --max-line-length 120
+
+    - stage: test
+      python: 2.7
+      script: pytest -p no:cacheprovider
     - python: 3.7
-      dist: xenial
+      script: pytest -p no:cacheprovider
+
+before_install:
+  - python --version
+  - uname -a
 
 install:
   - pip install flake8 pytest pytest-mock
 
-script:
-  - flake8 --max-line-length 120
-  - pytest -p no:cacheprovider
-
 notifications:
   email:
-    on_success: change
-    on_failure: change
+    on_success: never
+    on_failure: always
