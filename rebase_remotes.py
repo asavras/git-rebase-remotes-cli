@@ -1,11 +1,8 @@
 import argparse
-import logging
 import os
 import subprocess
 import sys
 from functools import wraps
-
-logger = logging.getLogger(__name__)
 
 
 def get_args():
@@ -26,19 +23,9 @@ def get_args():
     return parser.parse_args()
 
 
-def main():
-    args = get_args()
-
-    assert os.path.isdir(args.git_repo), 'Directory does not exist'
-    assert os.path.isfile(args.branches), 'File does not exist'
-
-    rr = RebaseRemotes(args.git_repo, args.branches, args.i)
-
-    if args.s == 'rebase':
-        rr.rebase(args.b, args.p)
-
-    elif args.s == 'merge':
-        rr.merge(args.b)
+def printer(string, error=False):
+    out = '\n' + string
+    sys.stderr.write(out) if error else sys.stdout.write(out)
 
 
 def print_result(func):
@@ -49,7 +36,7 @@ def print_result(func):
         if not result:
             result = 'No branches with {} conflicts.'.format(func.__name__)
 
-        sys.stdout.write('{} result:{}{}'.format(func.__name__, os.linesep, result))
+        printer('{} result:{}{}'.format(func.__name__, os.linesep, result))
 
     return wrap
 
@@ -62,13 +49,13 @@ class RebaseRemotes(object):
 
     def git(self, cmd, ignore_err=False, interrupt_if_err=True):  # type: (str, bool, bool) -> bool
         execute = ' '.join((self._git_repo_path, cmd))
-        logger.info(cmd)
+        printer(cmd)
         process = subprocess.Popen(execute.split(), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         output, error = process.communicate()
 
         if process.returncode == 1 and not ignore_err:
-            logger.warning('{}'.format(output))
-            logger.error('{}'.format(error))
+            printer('{}'.format(output))
+            printer('{}'.format(error), error=True)
             if interrupt_if_err:
                 sys.exit(1)
 
@@ -120,7 +107,7 @@ class RebaseRemotes(object):
         return: List of conflicting branches for solving them later manually
         """
         if not self.git('checkout {}'.format(target), ignore_err=True):
-            logger.fatal('branch {} not found.'.format(target))
+            printer('branch {} not found.'.format(target), error=True)
             sys.exit(1)
 
         conflicts = []
@@ -130,6 +117,21 @@ class RebaseRemotes(object):
                 self.git('merge --abort')
 
         return conflicts
+
+
+def main():
+    args = get_args()
+
+    assert os.path.isdir(args.git_repo), 'Directory does not exist'
+    assert os.path.isfile(args.branches), 'File does not exist'
+
+    rr = RebaseRemotes(args.git_repo, args.branches, args.i)
+
+    if args.s == 'rebase':
+        rr.rebase(args.b, args.p)
+
+    elif args.s == 'merge':
+        rr.merge(args.b)
 
 
 if __name__ == '__main__':
