@@ -3,7 +3,7 @@
 Command line interface for rebasing remote branches onto specify branch.
 All conflicts need to be resolved manually.
 
-<a href="https://github.com/asavras/rebase-remotes/actions"><img alt="Build Status" src="https://github.com/asavras/rebase-remotes/workflows/build/badge.svg"></a> [![Build Status](https://travis-ci.org/asavras/rebase-remotes.svg?branch=master)](https://travis-ci.org/asavras/rebase-remotes)
+<a href="https://github.com/asavras/rebase-remotes-cli/actions"><img alt="Build Status" src="https://github.com/asavras/rebase-remotes-cli/workflows/build/badge.svg"></a> [![Build Status](https://travis-ci.org/asavras/rebase-remotes-cli.svg?branch=master)](https://travis-ci.org/asavras/rebase-remotes-cli)
 
 ## Versions
 
