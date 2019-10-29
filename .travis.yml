@@ -22,7 +22,7 @@ before_install:
   - uname -a
 
 install:
-  - pip install flake8 pytest pytest-mock
+  - pip install -U -r requirements.txt
 
 notifications:
   email:
